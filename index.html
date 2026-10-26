@@ -39,14 +39,14 @@ aside h2{font-size:13px;margin:0 0 8px;color:var(--mut);font-weight:600}
 .acts{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 #tlwrap{border-top:1px solid var(--line);background:var(--panel);display:grid;grid-template-columns:64px 1fr;min-height:0}
 #labels{padding-top:26px;color:var(--mut);font-size:12px}
-#labels div{height:84px;display:flex;align-items:center;padding-left:10px}
+#labels div{height:64px;display:flex;align-items:center;padding-left:10px}
 #scroll{overflow:auto;position:relative}
 #tl{position:relative;height:100%;min-width:100%}
 .ruler{height:26px;border-bottom:1px solid var(--line);position:relative;cursor:col-resize}
 .tick{position:absolute;top:0;height:100%;border-left:1px solid var(--line);font-size:11px;color:var(--mut);padding-left:3px}
-.row{height:84px;position:relative;border-bottom:1px solid var(--line)}
-.clip{position:absolute;top:8px;height:68px;border-radius:6px;padding:6px 10px;overflow:hidden;white-space:nowrap;font-size:12px;cursor:grab;user-select:none;touch-action:none;color:#fff;border:2px solid transparent}
-.clip.v{background:var(--vid)}.clip.a{background:var(--aud)}
+.row{height:64px;position:relative;border-bottom:1px solid var(--line)}
+.clip{position:absolute;top:6px;height:52px;border-radius:6px;padding:6px 10px;overflow:hidden;white-space:nowrap;font-size:12px;cursor:grab;user-select:none;touch-action:none;color:#fff;border:2px solid transparent}
+.clip.o{background:#9b55c9}.clip.v{background:var(--vid)}.clip.a{background:var(--aud)}
 .clip.sel{border-color:var(--sel)}
 .clip i{display:block;font-style:normal;opacity:.75;margin-top:2px}
 .h{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;background:rgba(255,255,255,.35)}
@@ -93,7 +93,7 @@ aside h2{font-size:13px;margin:0 0 8px;color:var(--mut);font-weight:600}
 </main>
 
 <div id="tlwrap">
-  <div id="labels"><div>Video</div><div>Audio</div></div>
+  <div id="labels"><div>Text</div><div>Video</div><div>Audio</div></div>
   <div id="scroll"><div id="tl"></div></div>
 </div>
 <div id="msg"></div>
@@ -104,16 +104,14 @@ let media=[],clips=[],sel=null,t=0,playing=false,last=0,total=0,pps=60,exporting
 const cv=$('#cv'),cx=cv.getContext('2d');
 const len=c=>(c.out-c.in)/c.speed;
 const fmt=s=>{s=Math.max(0,s);return Math.floor(s/60)+':'+(s%60).toFixed(1).padStart(4,'0')};
-const mediaOf=c=>media.find(m=>m.id===c.mid);
+const mediaOf=c=>c.track==='o'?{name:(c.text||c.shape||'Text').replace(/</g,'&lt;'),dur:600}:media.find(m=>m.id===c.mid);
 function say(txt,ms=2500){const e=$('#msg');e.textContent=txt;e.style.display='block';clearTimeout(say.t);if(ms)say.t=setTimeout(()=>e.style.display='none',ms)}
 
-/* ---------- audio graph ---------- */
 function audio(){
   if(!ac){ac=new AudioContext();master=ac.createGain();master.connect(ac.destination);dest=ac.createMediaStreamDestination()}
   return ac;
 }
 
-/* ---------- media ---------- */
 async function addFiles(files){
   for(const f of files){
     const type=f.type.startsWith('video')?'video':f.type.startsWith('audio')?'audio':f.type.startsWith('image')?'image':null;
@@ -144,9 +142,8 @@ const bin=$('#bin');
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();bin.classList.remove('over')}));
 document.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
 
-/* ---------- clips ---------- */
 function addClip(m,track){
-  const c={id:uid++,mid:m.id,track,in:0,out:m.dur,speed:1,vol:1,fade:0,text:'',b:1,c:1,s:1,start:track==='a'?t:0};
+  const c={id:uid++,mid:m.id,track,in:0,out:m.dur,speed:1,vol:1,fade:0,fx:'',text:'',b:1,c:1,s:1,start:track==='a'?t:0};
   clips.push(c);sel=c.id;relayout();renderAll();
 }
 function relayout(){
@@ -159,7 +156,7 @@ function split(){
   const c=hit.find(c=>c.id===sel)||hit.find(c=>c.track==='v')||hit[0];
   if(!c)return say('Move the playhead over a clip first');
   const p=c.in+(t-c.start)*c.speed,d={...c,id:uid++,in:p};
-  if(c.track==='a')d.start=t;
+  if(c.track!=='v')d.start=t;
   c.out=p;clips.splice(clips.indexOf(c)+1,0,d);sel=d.id;relayout();renderAll();
 }
 function del(){if(!sel)return;clips=clips.filter(c=>c.id!==sel);sel=null;relayout();t=Math.min(t,total);renderAll()}
@@ -169,11 +166,10 @@ function move(dir){
 }
 function dup(){
   const c=clips.find(c=>c.id===sel);if(!c)return;
-  const d={...c,id:uid++};if(c.track==='a')d.start=c.start+len(c);
+  const d={...c,id:uid++};if(c.track!=='v')d.start=c.start+len(c);
   clips.splice(clips.indexOf(c)+1,0,d);sel=d.id;relayout();renderAll();
 }
 
-/* ---------- inspector ---------- */
 function renderInsp(){
   const c=clips.find(x=>x.id===sel),el=$('#insp');
   if(!c){el.innerHTML='<p class="hint">Click a clip on the timeline to change its volume, speed, fades, text and colour.</p>';return}
@@ -187,7 +183,7 @@ function renderInsp(){
 }
 $('#insp').addEventListener('input',e=>{
   const k=e.target.dataset.k;if(!k)return;
-  const c=clips.find(x=>x.id===sel);c[k]=k==='text'?e.target.value:+e.target.value;
+  const c=clips.find(x=>x.id===sel);c[k]=typeof c[k]==='string'?e.target.value:+e.target.value;
   const o=e.target.parentNode.querySelector('output');if(o)o.textContent=(+c[k]).toFixed(2);
   relayout();renderTL();
 });
@@ -196,13 +192,12 @@ $('#insp').addEventListener('click',e=>{
   if(a==='L')move(-1);if(a==='R')move(1);if(a==='D')dup();
 });
 
-/* ---------- timeline ---------- */
 function renderTL(){
   const W=Math.max(total+15,30)*pps,step=pps>=100?1:pps>=40?5:10;
   let h=`<div class="ruler">`;
   for(let s=0;s<W/pps;s+=step)h+=`<div class="tick" style="left:${s*pps}px">${fmt(s).replace('.0','')}</div>`;
   h+='</div>';
-  for(const tr of['v','a']){
+  for(const tr of['o','v','a']){
     h+=`<div class="row">`;
     for(const c of clips.filter(c=>c.track===tr))
       h+=`<div class="clip ${tr}${c.id===sel?' sel':''}" data-id="${c.id}" style="left:${c.start*pps}px;width:${Math.max(14,len(c)*pps)}px">
@@ -224,9 +219,9 @@ $('#tl').addEventListener('pointerdown',e=>{
   sel=c.id;renderInsp();
   const mv=ev=>{
     const dx=(ev.clientX-x0)/pps;
-    if(mode==='l'){const ni=Math.min(Math.max(0,s.in+dx*s.speed),s.out-.1);c.in=ni;if(c.track==='a')c.start=Math.max(0,s.start+(ni-s.in)/s.speed)}
+    if(mode==='l'){const ni=Math.min(Math.max(0,s.in+dx*s.speed),s.out-.1);c.in=ni;if(c.track!=='v')c.start=Math.max(0,s.start+(ni-s.in)/s.speed)}
     else if(mode==='r')c.out=Math.max(s.in+.1,Math.min(m.dur,s.out+dx*s.speed));
-    else if(c.track==='a')c.start=Math.max(0,s.start+dx);
+    else if(c.track!=='v')c.start=Math.max(0,s.start+dx);
     relayout();renderTL();
   };
   const up=()=>{window.removeEventListener('pointermove',mv);renderAll()};
@@ -236,7 +231,6 @@ $('#tl').addEventListener('pointerdown',e=>{
 $('#zoom').oninput=e=>{pps=+e.target.value;renderTL()};
 function renderAll(){renderMedia();renderTL();renderInsp()}
 
-/* ---------- playback + drawing ---------- */
 function play(){
   if(!clips.length)return say('Add a clip to the timeline first');
   audio();ac.resume();if(t>=total-.05)t=0;playing=true;last=performance.now();$('#play').textContent='Pause';
@@ -275,7 +269,7 @@ function draw(){
   const m=mediaOf(c),el=m.el,w=m.type==='image'?el.naturalWidth:el.videoWidth,h=m.type==='image'?el.naturalHeight:el.videoHeight;
   if(!w)return;
   const k=Math.min(W/w,H/h),dw=w*k,dh=h*k;
-  cx.globalAlpha=fadeF(c);cx.filter=`brightness(${c.b}) contrast(${c.c}) saturate(${c.s})`;
+  cx.globalAlpha=fadeF(c);cx.filter=`brightness(${c.b}) contrast(${c.c}) saturate(${c.s}) ${c.fx||''}`;
   cx.drawImage(el,(W-dw)/2,(H-dh)/2,dw,dh);
   cx.filter='none';cx.globalAlpha=1;
   if(c.text){
@@ -290,14 +284,13 @@ function tick(now){
     if(t>=total){t=total;pause()}
   }
   last=now;
-  if(media.length){sync();draw()}
+  sync();draw()
   $('#ph').style.left=t*pps+'px';
   $('#time').textContent=fmt(t)+' / '+fmt(total);
   if(playing){const s=$('#scroll'),x=t*pps;if(x>s.scrollLeft+s.clientWidth-40)s.scrollLeft=x-40}
   requestAnimationFrame(tick);
 }
 
-/* ---------- export ---------- */
 $('#ratio').onchange=e=>{const[w,h]=e.target.value.split('x');cv.width=+w;cv.height=+h};
 $('#exp').onclick=()=>{
   if(exporting||!clips.length)return say('Add something to the timeline first');
@@ -320,10 +313,9 @@ $('#exp').onclick=()=>{
   },200);
 };
 
-/* ---------- shortcuts ---------- */
 $('#split').onclick=split;$('#del').onclick=del;
 addEventListener('keydown',e=>{
-  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;
+  if(/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.ctrlKey||e.metaKey)return;
   if(e.code==='Space'){e.preventDefault();$('#play').click()}
   else if(e.key==='s'||e.key==='S')split();
   else if(e.key==='Delete'||e.key==='Backspace')del();
@@ -331,5 +323,6 @@ addEventListener('keydown',e=>{
 
 relayout();renderAll();requestAnimationFrame(tick);
 </script>
+<script src="extras.js"></script>
 </body>
 </html>
