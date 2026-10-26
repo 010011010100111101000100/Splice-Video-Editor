@@ -56,6 +56,9 @@ aside h2{font-size:13px;margin:0 0 8px;color:var(--mut);font-weight:600}
 #msg{position:fixed;left:50%;bottom:262px;transform:translateX(-50%);background:var(--ac);color:#0c1a19;padding:8px 16px;border-radius:20px;font-weight:700;display:none;z-index:9}
 @media(max-width:820px){body{grid-template-rows:auto 1fr 230px;overflow:auto}main{grid-template-columns:1fr;grid-template-rows:auto 320px auto}}
 </style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;800&family=DM+Mono&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="theme.css">
 </head>
 <body>
 <header>
@@ -120,7 +123,7 @@ async function addFiles(files){
     if(type==='image'){m.el=new Image();m.el.src=url;await m.el.decode().catch(()=>{})}
     else{
       const el=document.createElement(type);el.src=url;el.preload='auto';el.playsInline=true;
-      await new Promise(r=>{el.onloadedmetadata=r;el.onerror=r});
+      await new Promise(r=>{el.onloadedmetadata=r;el.onerror=r;setTimeout(r,4000)});
       if(isFinite(el.duration))m.dur=el.duration;
       m.el=el;audio();
       const g=ac.createGain();ac.createMediaElementSource(el).connect(g);g.connect(master);g.connect(dest);m.gain=g;
@@ -136,11 +139,11 @@ function renderMedia(){
 }
 $('#list').onclick=e=>{const b=e.target.closest('[data-add]');if(!b)return;addClip(media.find(m=>m.id==b.dataset.id),b.dataset.add)};
 $('#pick').onclick=()=>$('#file').click();
-$('#file').onchange=e=>{addFiles(e.target.files);e.target.value=''};
+$('#file').onchange=e=>{addFiles([...e.target.files]);e.target.value=''};
 const bin=$('#bin');
 ['dragover','dragenter'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();bin.classList.add('over')}));
 ['dragleave','drop'].forEach(ev=>document.addEventListener(ev,e=>{e.preventDefault();bin.classList.remove('over')}));
-document.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+document.addEventListener('drop',e=>addFiles([...e.dataTransfer.files]));
 
 function addClip(m,track){
   const c={id:uid++,mid:m.id,track,in:0,out:m.dur,speed:1,vol:1,fade:0,fx:'',text:'',b:1,c:1,s:1,start:track==='a'?t:0};
@@ -270,7 +273,7 @@ function draw(){
   if(!w)return;
   const k=Math.min(W/w,H/h),dw=w*k,dh=h*k;
   cx.globalAlpha=fadeF(c);cx.filter=`brightness(${c.b}) contrast(${c.c}) saturate(${c.s}) ${c.fx||''}`;
-  cx.drawImage(el,(W-dw)/2,(H-dh)/2,dw,dh);
+  vFx(c,el,W,H,dw,dh,w,h);
   cx.filter='none';cx.globalAlpha=1;
   if(c.text){
     const fs=Math.round(H*.06);cx.font=`bold ${fs}px "Trebuchet MS",sans-serif`;cx.textAlign='center';
@@ -298,8 +301,8 @@ $('#exp').onclick=()=>{
   const mimes=['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'];
   const mime=mimes.find(x=>MediaRecorder.isTypeSupported(x));
   exporting=true;pause();t=0;audio();ac.resume();master.gain.value=0;
-  const stream=cv.captureStream(30);dest.stream.getAudioTracks().forEach(tr=>stream.addTrack(tr));
-  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:8e6}),parts=[];
+  const stream=cv.captureStream(+$('#fps').value);dest.stream.getAudioTracks().forEach(tr=>stream.addTrack(tr));
+  const rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:+$('#q').value}),parts=[];
   rec.ondataavailable=e=>e.data.size&&parts.push(e.data);
   rec.onstop=()=>{
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(parts,{type:mime}));
@@ -325,5 +328,6 @@ relayout();renderAll();requestAnimationFrame(tick);
 </script>
 <script src="extras.js"></script>
 <script src="studio.js"></script>
+<script src="pro.js"></script>
 </body>
 </html>
