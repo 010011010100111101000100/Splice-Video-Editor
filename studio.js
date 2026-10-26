@@ -135,7 +135,7 @@ renderTL=function(){
   for(const[tr,l]of rows){
     h+=`<div class="row"><span class="rl${tr!=='v'&&act[tr]===l?' on':''}" data-tr="${tr}" data-l="${l}">${laneName(tr,l)}</span>`;
     for(const c of clips.filter(c=>c.track===tr&&(c.lane||0)===l))
-      h+=`<div class="clip ${tr}${c.id===sel?' sel':''}" data-id="${c.id}" style="left:${c.start*pps}px;width:${Math.max(14,len(c)*pps)}px"><div class="h l" data-h="l"></div>${mediaOf(c).name}<i>${fmt(len(c))}${c.speed!==1?' · '+c.speed+'x':''}</i><div class="h r" data-h="r"></div></div>`;
+      h+=`<div class="clip ${tr}${c.id===sel?' sel':''}" data-id="${c.id}" style="left:${c.start*pps}px;width:${Math.max(14,len(c)*pps)}px"><div class="h l" data-h="l"></div>${wave(c)}${mediaOf(c).name}<i>${fmt(len(c))}${c.speed!==1?' · '+c.speed+'x':''}</i><div class="h r" data-h="r"></div></div>`;
     h+='</div>';
   }
   $('#tl').style.width=W+'px';
